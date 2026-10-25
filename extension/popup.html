@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>PotBridge · 映桥</title></head>
+<body class="popup-body">
+  <main class="popup-shell">
+    <header class="brand-bar">
+      <a class="brand" href="#" aria-label="PotBridge 映桥"><span class="brand-icon" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M9 6v20l16-10L9 6Z"/><path d="M5 9v14"/></svg></span><span>PotBridge<small>映桥 / EDGE → POTPLAYER</small></span></a>
+      <button id="settings" class="icon-button" title="设置" aria-label="打开设置"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 3-1 3-3 1-1 4 2 2-1 3 3 3 3-1 2 2 4-1 1-3 3-1V9l-3-1-1-3-4-1-2 2Z"/><circle cx="12" cy="12" r="3"/></svg></button>
+    </header>
+    <div class="connection-strip"><span id="connection" class="connection"><i aria-hidden="true"></i>检查本机连接…</span><span class="version">PERSONAL / 0.1</span></div>
+    <div class="popup-scroll">
+    <section class="current-media" aria-labelledby="page-title">
+      <div class="eyebrow">当前页面 <span id="site-host"></span></div>
+      <h1 id="page-title">让视频回到<br>熟悉的播放器。</h1>
+      <div id="site-toggle-wrap" class="site-toggle-wrap"><label class="toggle-label"><input id="site-enabled" type="checkbox" role="switch"><span>在此站点启用检测</span></label></div>
+    </section>
+    <section class="media-section" aria-label="发现的媒体">
+      <div class="section-heading"><span>媒体源</span><span id="source-count">0 个</span></div>
+      <div id="sources" class="source-list"></div>
+      <div id="empty" class="empty-state"><svg viewBox="0 0 48 48" aria-hidden="true"><rect x="5" y="9" width="38" height="27" rx="5"/><path d="m20 17 10 6-10 6Z"/><path d="M17 42h14"/></svg><strong>先在网页播放一小段</strong><p>识别到媒体后，它会出现在这里。<br>首次启用站点后，请刷新网页。</p></div>
+    </section>
+    <div id="feedback" class="feedback" role="status" aria-live="polite"><span class="status-dot" aria-hidden="true"></span><div><strong id="status-label">等待发现媒体</strong><p id="status-detail">先在网页开始播放，再点击重新检测。</p></div></div>
+    <div id="notice" class="notice" role="alert" hidden></div>
+    </div>
+    <div class="actions">
+      <button id="play" class="primary-button" disabled><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 3 11 7L6 17Z"/></svg><span>用 PotPlayer 播放</span></button>
+      <div class="secondary-actions"><button id="detect" class="text-button">重新检测</button><button id="refresh" class="text-button" disabled>重新获取地址</button><button id="probe" class="text-button" disabled>检查媒体</button></div>
+    </div>
+    <footer><span>仅在本机处理 · 关闭弹窗不影响中转</span><button id="stop" class="text-button small" hidden>结束中转</button></footer>
+  </main>
+  <script type="module" src="./src/ui/popup.ts"></script>
+</body></html>

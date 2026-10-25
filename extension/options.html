@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>PotBridge · 设置</title></head>
+<body class="options-body">
+  <main class="settings-shell">
+    <header class="settings-header"><a class="brand" href="popup.html"><span class="brand-icon" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M9 6v20l16-10L9 6Z"/><path d="M5 9v14"/></svg></span><span>PotBridge<small>映桥 / PERSONAL EDITION</small></span></a><span class="version">VERSION 0.1.0</span></header>
+    <div class="settings-intro"><span class="eyebrow">连接你的播放器</span><h1>一次设置，<br>从网页交给 PotPlayer。</h1><p>插件负责发现媒体，本机组件负责检查与中转。所有播放信息留在你的电脑上。</p></div>
+    <div id="preview-note" class="notice" hidden>这是界面预览。实际配置请从 Edge 扩展的设置页打开。</div>
+    <section class="settings-card"><div class="card-heading"><span class="step-number">01</span><div><h2>本机连接</h2><p id="host-status">正在检查本机组件…</p></div><button id="reconnect" class="secondary-button">重新检查</button></div><div class="install-guide"><p>首次安装：在发行包目录运行安装脚本，并使用下面的扩展 ID。</p><div class="copy-line"><code id="extension-id">从 Edge 扩展设置页查看</code><button id="copy-id" class="text-button">复制 ID</button></div><p class="hint">安装后回到这里重新检查。播放期间请保持 Edge 运行。</p></div></section>
+    <form id="settings-form">
+      <section class="settings-card"><div class="card-heading"><span class="step-number">02</span><div><h2>PotPlayer</h2><p>自动检测到路径时会填入，也可以手动修改。</p></div></div><label for="player-path">可执行文件路径</label><input id="player-path" type="text" placeholder="C:\Program Files\DAUM\PotPlayer\PotPlayerMini64.exe" autocomplete="off" spellcheck="false"><p class="hint">填写完整的 .exe 路径，不要添加命令行参数。</p></section>
+      <section class="settings-card"><div class="card-heading"><span class="step-number">03</span><div><h2>网络连接</h2><p>让本机组件使用适合当前网站的网络出口。</p></div></div><label for="proxy-mode">连接方式</label><select id="proxy-mode"><option value="system">跟随 Windows 系统代理（推荐）</option><option value="direct">直接连接</option><option value="manual">手动 HTTP 代理</option></select><div id="proxy-url-wrap" hidden><label for="proxy-url">代理地址</label><input id="proxy-url" type="url" placeholder="http://127.0.0.1:7890" autocomplete="off" spellcheck="false"></div><p class="hint">若 Edge 使用单独的代理扩展，请核对本机出口。修改网络设置前先结束中转。</p></section>
+      <details class="settings-card advanced"><summary>可选诊断工具</summary><label for="ffprobe-path">ffprobe.exe 路径</label><input id="ffprobe-path" type="text" placeholder="可留空" autocomplete="off" spellcheck="false"><p class="hint">用于进一步检查封装和编码。未配置时仍可正常检测和中转。</p></details>
+      <div id="settings-feedback" class="notice" role="status" aria-live="polite" hidden></div>
+      <div class="settings-actions"><button id="save" class="primary-button" type="submit">保存设置</button><button id="export" class="secondary-button" type="button">导出脱敏诊断</button><button id="stop-all" class="text-button" type="button">结束全部中转</button></div>
+    </form>
+    <footer class="settings-footer"><span>PotBridge · 为自己的观看习惯而做</span><span>MP4 / HLS · 本地中转</span></footer>
+  </main><script type="module" src="./src/ui/options.ts"></script>
+</body></html>

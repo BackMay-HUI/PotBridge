@@ -1,0 +1,12 @@
+node_modules/
+.tools/
+.cache/
+.superpowers/
+dist/
+release/
+native/bin/
+*.log
+docs/superpowers/
+.env
+.env.*
+!.env.example
