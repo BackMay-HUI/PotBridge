@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MPD xmlns="urn:mpeg:dash:schema:mpd:2011" type="static" mediaPresentationDuration="PT20S" minBufferTime="PT1.5S" profiles="urn:mpeg:dash:profile:isoff-live:2011">
+  <BaseURL>../media/</BaseURL>
+  <Period start="PT0S">
+    <AdaptationSet contentType="video" mimeType="video/mp4" codecs="avc1.640028" segmentAlignment="true">
+      <SegmentTemplate timescale="1000" initialization="init-$RepresentationID$.mp4?auth=a%2Bb&amp;v=1" media="$RepresentationID$-$Number%05d$.m4s?auth=s%2Fq" startNumber="10" presentationTimeOffset="5000">
+        <SegmentTimeline><S t="5000" d="5000" r="3"/></SegmentTimeline>
+      </SegmentTemplate>
+      <Representation id="low" bandwidth="500000" width="640" height="360"><BaseURL>360/</BaseURL></Representation>
+      <Representation id="high" bandwidth="2500000" width="1920" height="1080"><BaseURL>1080/</BaseURL><SegmentTemplate startNumber="20"/></Representation>
+    </AdaptationSet>
+    <AdaptationSet contentType="audio" mimeType="audio/mp4" codecs="mp4a.40.2" lang="en">
+      <Representation id="aac" bandwidth="128000" audioSamplingRate="48000">
+        <BaseURL>audio/</BaseURL>
+        <AudioChannelConfiguration schemeIdUri="urn:mpeg:dash:23003:3:audio_channel_configuration:2011" value="2"/>
+        <SegmentList timescale="48000" duration="240000">
+          <Initialization sourceURL="init.mp4" range="0-99"/>
+          <SegmentURL media="1.m4s" mediaRange="0-199"/>
+          <SegmentURL media="2.m4s" mediaRange="200-399"/>
+        </SegmentList>
+      </Representation>
+    </AdaptationSet>
+  </Period>
+</MPD>

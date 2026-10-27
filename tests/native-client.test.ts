@@ -10,8 +10,9 @@ function portFixture() {
 test('correlates native responses and rejects pending requests on disconnect', async () => {
   const f = portFixture(), client = new NativeClient(() => f.port, () => {}, () => 'host unavailable', 1000);
   const first = client.request('hello');
-  f.respond({ protocolVersion: 1, requestId: f.messages[0].requestId, ok: true, result: { version: '0.1.0' } });
-  assert.equal((await first).version, '0.1.0');
+  assert.equal(f.messages[0].protocolVersion, 2);
+  f.respond({ protocolVersion: 2, requestId: f.messages[0].requestId, ok: true, result: { version: '0.2.0' } });
+  assert.equal((await first).version, '0.2.0');
   const second = client.request('probe', {});
   f.port.disconnect();
   await assert.rejects(second, (e: any) => e.code === 'NATIVE_DISCONNECTED');
@@ -20,9 +21,17 @@ test('correlates native responses and rejects pending requests on disconnect', a
 test('does not mistake unsolicited session events for successful requests', async () => {
   const f = portFixture(), events: any[] = [], client = new NativeClient(() => f.port, e => events.push(e), () => '', 15);
   const pending = client.request('play');
-  f.respond({ protocolVersion: 1, type: 'mediaRequested', sessionId: 's' });
+  f.respond({ protocolVersion: 2, type: 'mediaRequested', sessionId: 's' });
   await assert.rejects(pending, (e: any) => e.code === 'NATIVE_TIMEOUT');
   assert.equal(events.length, 1); client.close();
+});
+
+test('an old host reports an immediate version mismatch instead of silently losing audio or timing out', async () => {
+  const f = portFixture(), client = new NativeClient(() => f.port, () => {}, () => '', 30);
+  const pending = client.request('hello');
+  f.respond({ protocolVersion: 1, requestId: f.messages[0].requestId, ok: false, error: { code: 'VERSION_MISMATCH' } });
+  await assert.rejects(pending, (e: any) => e.code === 'VERSION_MISMATCH');
+  client.close();
 });
 
 test('browser native connection errors identify the failed boundary', async () => {

@@ -20,7 +20,41 @@ type Candidate struct {
 	Format          string                       `json:"format"`
 	CapturedAt      int64                        `json:"capturedAt"`
 	HeadersByOrigin map[string]map[string]string `json:"headersByOrigin"`
+	Video           *Track                       `json:"video,omitempty"`
+	Audio           *Track                       `json:"audio,omitempty"`
+	Quality         string                       `json:"quality,omitempty"`
+	ContentID       string                       `json:"contentId,omitempty"`
+	Live            bool                         `json:"live,omitempty"`
 }
+
+type Track struct {
+	URL        string   `json:"url"`
+	BackupURLs []string `json:"backupUrls,omitempty"`
+	ID         string   `json:"id,omitempty"`
+	MimeType   string   `json:"mimeType,omitempty"`
+	Codecs     string   `json:"codecs,omitempty"`
+	Bandwidth  float64  `json:"bandwidth,omitempty"`
+	Width      float64  `json:"width,omitempty"`
+	Height     float64  `json:"height,omitempty"`
+	FrameRate  string   `json:"frameRate,omitempty"`
+}
+
+func validTrack(track *Track) bool {
+	if track == nil {
+		return false
+	}
+	if len(track.BackupURLs) > 2 || len(track.ID) > 100 || len(track.MimeType) > 100 || len(track.Codecs) > 100 || len(track.FrameRate) > 100 {
+		return false
+	}
+	for _, raw := range append([]string{track.URL}, track.BackupURLs...) {
+		u, err := url.Parse(raw)
+		if err != nil || len(raw) > 16384 || u.User != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") {
+			return false
+		}
+	}
+	return true
+}
+
 type Resource struct {
 	URL        string
 	Kind       string
@@ -47,6 +81,22 @@ func AsFault(err error) *Fault {
 	return Failure("INTERNAL_ERROR", "internal", "操作失败，请重新检测或查看诊断。")
 }
 func (c Candidate) Validate() error {
+	if len(c.Quality) > 300 || len(c.ContentID) > 200 {
+		return Failure("INVALID_INPUT", "input", "媒体标识过大。")
+	}
+	if c.Video != nil {
+		if !validTrack(c.Video) || c.Video.URL != c.URL || c.Format != "dash" {
+			return Failure("INVALID_INPUT", "video", "视频轨信息无效。")
+		}
+		if c.Audio == nil {
+			return Failure("AUDIO_UNAVAILABLE", "audio", "只发现独立视频轨，尚未获得音轨。请在网页开始播放后重新检测。")
+		}
+		if !validTrack(c.Audio) {
+			return Failure("INVALID_INPUT", "audio", "音轨信息无效。")
+		}
+	} else if c.Audio != nil {
+		return Failure("INVALID_INPUT", "audio", "独立音轨缺少对应视频。")
+	}
 	if len(c.URL) > 16384 || len(c.Title) > 2048 || len(c.PageKey) > 1024 || len(c.HeadersByOrigin) > 32 {
 		return Failure("INVALID_INPUT", "input", "媒体信息过大。")
 	}
@@ -85,7 +135,7 @@ func (c Candidate) HeadersFor(rawURL string) http.Header {
 		}
 	}
 	if h.Get("User-Agent") == "" {
-		h.Set("User-Agent", "PotBridge/0.1")
+		h.Set("User-Agent", "PotBridge/0.2")
 	}
 	h.Set("Accept-Encoding", "identity")
 	return h

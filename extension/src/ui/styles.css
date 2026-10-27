@@ -25,6 +25,7 @@
 .popup-shell .source-row input{width:18px;height:18px}
 .popup-shell .source-content strong{font-size:16px}
 .popup-shell .source-meta{font-size:13px}
+.popup-shell .source-row[data-missing-audio=true]{border-color:#826a49}
 .popup-shell .format-badge{font-size:13px;padding:3px 7px}
 .popup-shell .empty-state{padding:18px 12px}
 .popup-shell .empty-state svg{width:34px;height:34px;margin-bottom:8px}

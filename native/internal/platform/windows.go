@@ -86,7 +86,7 @@ func ResolveProxy(req *http.Request, c Config) (*url.URL, error) {
 	defer freeString(config.ProxyBypass)
 	proxy, bypass := utf16String(config.Proxy), utf16String(config.ProxyBypass)
 	if config.AutoConfigURL != nil || config.AutoDetect != 0 {
-		agent, _ := syscall.UTF16PtrFromString("PotBridge/0.1")
+		agent, _ := syscall.UTF16PtrFromString("PotBridge/0.2")
 		handle, _, _ := winOpen.Call(uintptr(unsafe.Pointer(agent)), 1, 0, 0, 0)
 		if handle == 0 {
 			return nil, errors.New("无法初始化系统代理解析。")
@@ -155,13 +155,24 @@ func FindPlayer() string {
 	return ""
 }
 func LaunchPlayer(executable, mediaURL string) error {
+	return LaunchPlayerWithAudio(executable, mediaURL, "")
+}
+func LaunchPlayerWithAudio(executable, mediaURL, audioURL string) error {
 	if executable == "" {
 		return errors.New("请先在设置中选择 PotPlayer 可执行文件。")
 	}
 	if err := (Config{PlayerPath: executable, ProxyMode: "direct"}).Validate(); err != nil {
 		return err
 	}
-	cmd := exec.Command(executable, mediaURL)
+	args := []string{mediaURL}
+	if audioURL != "" {
+		parsed, err := url.Parse(audioURL)
+		if err != nil || parsed.Scheme != "http" || parsed.Hostname() != "127.0.0.1" || parsed.Port() == "" || parsed.User != nil || !strings.HasPrefix(parsed.Path, "/s/") {
+			return errors.New("音轨必须使用本机会话中转地址。")
+		}
+		args = append(args, "/aud="+audioURL)
+	}
+	cmd := exec.Command(executable, args...)
 	if err := cmd.Start(); err != nil {
 		return errors.New("无法启动 PotPlayer，请核对可执行文件路径。")
 	}

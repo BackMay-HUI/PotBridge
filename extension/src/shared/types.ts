@@ -1,5 +1,16 @@
-export type MediaFormat = 'hls' | 'mp4' | 'dash' | 'unknown';
+export type MediaFormat = 'hls' | 'mp4' | 'dash' | 'flv' | 'unknown';
 export type HeaderContext = Record<string, Record<string, string>>;
+export interface MediaTrack {
+  url: string;
+  backupUrls?: string[];
+  id?: string;
+  mimeType?: string;
+  codecs?: string;
+  bandwidth?: number;
+  width?: number;
+  height?: number;
+  frameRate?: string;
+}
 export interface MediaCandidate {
   id: string;
   tabId: number;
@@ -7,12 +18,17 @@ export interface MediaCandidate {
   pageKey: string;
   pageUrl: string;
   title: string;
-  source: 'cycani' | 'network' | 'dom';
+  source: 'cycani' | 'bilibili' | 'network' | 'dom';
   sectionId?: string;
   url: string;
   format: MediaFormat;
   capturedAt: number;
   headersByOrigin: HeaderContext;
+  video?: MediaTrack;
+  audio?: MediaTrack;
+  quality?: string;
+  contentId?: string;
+  live?: boolean;
 }
 export interface HostConfig {
   playerPath: string;
@@ -21,8 +37,8 @@ export interface HostConfig {
   ffprobePath: string;
 }
 export interface Fault { code: string; message: string; stage?: string; status?: number }
-export interface HostResponse { protocolVersion: 1; requestId: string; ok: boolean; result?: any; error?: Fault }
-export interface HostEvent { protocolVersion: 1; type: string; sessionId?: string; error?: Fault; [key: string]: unknown }
+export interface HostResponse { protocolVersion: 2; requestId: string; ok: boolean; result?: any; error?: Fault }
+export interface HostEvent { protocolVersion: 2; type: string; sessionId?: string; error?: Fault; [key: string]: unknown }
 export interface ExtensionSettings { enabledOrigins: string[] }
 export interface TabState {
   pageUrl: string;
@@ -33,4 +49,4 @@ export interface TabState {
   sessionId?: string;
 }
 export const NATIVE_HOST = 'com.potbridge.host';
-export const DEFAULT_SETTINGS: ExtensionSettings = { enabledOrigins: ['https://www.cycani.org'] };
+export const DEFAULT_SETTINGS: ExtensionSettings = { enabledOrigins: ['https://www.cycani.org', 'https://www.bilibili.com', 'https://live.bilibili.com'] };

@@ -1,4 +1,4 @@
-import { CandidateStore, classifyMedia, safeMediaUrl, sanitizeHeaders, describeUrl } from './media.ts';
+import { CandidateStore, classifyMedia, safeMediaUrl, sanitizeHeaders, sanitizeTrack, describeUrl } from './media.ts';
 import { DEFAULT_SETTINGS } from './types.ts';
 import type { ExtensionSettings, MediaCandidate, TabState, HostEvent, Fault } from './types.ts';
 
@@ -10,8 +10,9 @@ interface Dependencies {
   sendToTab(id: number, message: object, frameId?: number): Promise<any>;
   native(type: string, payload?: Record<string, unknown>): Promise<any>;
   saveSettings(settings: ExtensionSettings): Promise<void>;
+  userAgent?: string;
 }
-interface Page { pageKey: string; nonce: string; pageUrl: string; title: string; status: string; error?: Fault; sessionId?: string; busy: boolean }
+interface Page { pageKey: string; nonce: string; pageUrl: string; title: string; status: string; error?: Fault; sessionId?: string; playOperation?: string; busy: boolean; mediaHeaders: Map<string, Record<string, string>> }
 const fault = (code: string, message: string): Fault => ({ code, message });
 export function asFault(error: unknown): Fault {
   if (error && typeof error === 'object' && 'code' in error && 'message' in error) return error as Fault;
@@ -24,6 +25,7 @@ export class BridgeController {
   private pages = new Map<number, Page>();
   private sessions = new Map<string, { tabId: number; candidate: MediaCandidate }>();
   private pendingPlays = 0;
+  private stopping = 0;
   private earlyEvents = new Map<string, HostEvent[]>();
   constructor(io: Dependencies) { this.io = io; }
   enabled(url: string): boolean { try { return this.settings.enabledOrigins.includes(new URL(url).origin); } catch { return false; } }
@@ -32,10 +34,16 @@ export class BridgeController {
   invalidate(tabId: number, pageUrl: string, title = ''): Page {
     const old = this.pages.get(tabId);
     if (old?.pageUrl === pageUrl) return old;
-    const page: Page = { pageKey: crypto.randomUUID(), nonce: '', pageUrl, title, status: 'unidentified', sessionId: old?.sessionId, busy: false };
+    this.cancelPending(old);
+    const page: Page = { pageKey: crypto.randomUUID(), nonce: '', pageUrl, title, status: 'unidentified', sessionId: old?.sessionId, busy: false, mediaHeaders: new Map() };
     this.pages.set(tabId, page); this.store.navigate(tabId, page.pageKey, pageUrl); return page;
   }
-  remove(tabId: number) { this.pages.delete(tabId); this.store.remove(tabId); }
+  remove(tabId: number) { this.cancelPending(this.pages.get(tabId)); this.pages.delete(tabId); this.store.remove(tabId); }
+  private cancelPending(page?: Page): void {
+    const operationId = page?.playOperation;
+    if (page) page.playOperation = undefined;
+    if (operationId) void this.io.native('stop', { operationId }).catch(() => {});
+  }
   private ui(sender: Sender): boolean { return ['popup.html', 'options.html'].some(file => sender.url?.split(/[?#]/)[0] === this.io.extensionBase + file); }
   private async current(tabId: number): Promise<Page> {
     if (!Number.isInteger(tabId) || tabId < 0) throw fault('NO_TAB', '请在视频网页中打开插件。');
@@ -52,6 +60,11 @@ export class BridgeController {
     const page = this.pages.get(tabId);
     if (!page || page.pageKey !== pageKey || !this.enabled(page.pageUrl) || !safeMediaUrl(url)) return;
     const headers = sanitizeHeaders(rawHeaders), origin = new URL(url).origin;
+    const frameOrigin = `${frameId}:${origin}`;
+    if (/^(video\/|audio\/|application\/octet-stream)/i.test(mime)) {
+      if (page.mediaHeaders.size >= 32 && !page.mediaHeaders.has(frameOrigin)) page.mediaHeaders.delete(page.mediaHeaders.keys().next().value!);
+      page.mediaHeaders.set(frameOrigin, headers);
+    }
     const format = classifyMedia(url, mime);
     if (format) {
       this.store.add({ id: crypto.randomUUID(), tabId, frameId, pageKey, pageUrl: page.pageUrl, title: page.title, source: 'network', url, format, capturedAt: Date.now(), headersByOrigin: { [origin]: headers } });
@@ -73,9 +86,14 @@ export class BridgeController {
     if (type === 'saveConfig') return this.io.native('configure', { config: message.config });
     if (type === 'diagnostics') {
       const host = await this.io.native('diagnostics').catch(error => ({ error: asFault(error) }));
-      return { version: '0.1.0', host, currentPages: [...this.pages.entries()].map(([tabId, page]) => ({ origin: describeUrl(page.pageUrl), status: page.status, error: page.error, candidates: this.store.list(tabId).map(c => ({ source: c.source, format: c.format, resource: describeUrl(c.url), capturedAt: c.capturedAt })) })) };
+      return { version: '0.2.0', host, currentPages: [...this.pages.entries()].map(([tabId, page]) => ({ origin: describeUrl(page.pageUrl), status: page.status, error: page.error, candidates: this.store.list(tabId).map(c => ({ source: c.source, format: c.format, resource: describeUrl(c.url), capturedAt: c.capturedAt })) })) };
     }
-    if (type === 'stopAll') { const result = await this.io.native('stop'); this.sessions.clear(); for (const page of this.pages.values()) { page.sessionId = undefined; page.status = 'detected'; } return result; }
+    if (type === 'stopAll') {
+      for (const page of this.pages.values()) page.playOperation = undefined;
+      this.stopping++;
+      try { const result = await this.io.native('stop'); this.sessions.clear(); for (const page of this.pages.values()) { page.sessionId = undefined; page.status = 'detected'; } return result; }
+      finally { this.stopping--; }
+    }
     const tabId = message.tabId as number, page = await this.current(tabId);
     if (type === 'getState') return this.state(tabId);
     if (type === 'enableSite') {
@@ -84,7 +102,7 @@ export class BridgeController {
       const enabled = message.enabled === true;
       const origins = new Set(this.settings.enabledOrigins); enabled ? origins.add(origin) : origins.delete(origin);
       this.settings = { enabledOrigins: [...origins].slice(0, 64) }; await this.io.saveSettings(this.settings);
-      if (!enabled) { this.store.navigate(tabId, crypto.randomUUID(), page.pageUrl); page.pageKey = this.store.page(tabId)!.pageKey; page.status = 'unidentified'; }
+      if (!enabled) { this.store.navigate(tabId, crypto.randomUUID(), page.pageUrl); page.pageKey = this.store.page(tabId)!.pageKey; page.status = 'unidentified'; page.mediaHeaders.clear(); }
       try { await this.io.sendToTab(tabId, { type: 'rescan' }); } catch { /* UI tells the user to refresh the existing page. */ }
       return this.state(tabId);
     }
@@ -93,20 +111,33 @@ export class BridgeController {
       try { await this.io.sendToTab(tabId, { type: 'rescan' }); } catch { throw fault('RELOAD_PAGE', '请刷新当前网页并开始播放，然后重新检测。'); }
       return this.state(tabId);
     }
-    if (type === 'stop') { const result = await this.io.native('stop', { sessionId: page.sessionId }); if (page.sessionId) this.sessions.delete(page.sessionId); page.sessionId = undefined; page.status = 'detected'; return result; }
+    if (type === 'stop') {
+      const operationId = page.playOperation, sessionId = page.sessionId;
+      page.playOperation = undefined; this.stopping++;
+      try {
+        const result = operationId || sessionId ? await this.io.native('stop', { operationId, sessionId }) : { stopped: true };
+        if (sessionId) this.sessions.delete(sessionId);
+        page.sessionId = undefined; page.status = 'detected'; return result;
+      } finally { this.stopping--; }
+    }
     if (!['play', 'probe', 'refresh'].includes(type)) throw fault('UNKNOWN_COMMAND', '不支持此操作。');
     const candidate = this.store.list(tabId).find(c => c.id === message.candidateId);
     if (!this.enabled(page.pageUrl) || !candidate || candidate.pageKey !== page.pageKey) throw fault('NO_MEDIA', '当前页面没有这个媒体源，请重新检测。');
-    if (page.busy) throw fault('BUSY', '正在检查媒体，请稍候。');
+    if (page.busy || this.stopping) throw fault('BUSY', '正在检查媒体或结束中转，请稍候。');
     page.busy = true; page.status = 'checking'; page.error = undefined;
-    if (type === 'play') this.pendingPlays++;
+    const operationId = type === 'play' ? crypto.randomUUID() : undefined;
+    if (type === 'play') { this.pendingPlays++; page.playOperation = operationId; }
     try {
       if (type === 'refresh') { await this.refreshCandidate(tabId, candidate); page.status = 'detected'; return this.state(tabId); }
-      const result = await this.io.native(type, { candidate });
+      const result = await this.io.native(type, { candidate, ...(operationId ? { operationId, sessionId: page.sessionId } : {}) });
       if (type === 'play') {
         if (this.pages.get(tabId) !== page || page.pageKey !== candidate.pageKey) {
           await this.io.native('stop', { sessionId: result.session.id });
           throw fault('CONTENT_CHANGED', '当前页面已切换，已结束刚创建的中转。请重新选择媒体。');
+        }
+        if (page.playOperation !== operationId) {
+          await this.io.native('stop', { sessionId: result.session.id });
+          throw fault('PLAY_CANCELLED', '已取消本次播放并结束中转。');
         }
         const previous = page.sessionId; page.sessionId = result.session.id;
         this.sessions.set(result.session.id, { tabId, candidate });
@@ -117,8 +148,12 @@ export class BridgeController {
         if (previous && previous !== page.sessionId) { try { await this.io.native('stop', { sessionId: previous }); this.sessions.delete(previous); } catch {} }
       } else page.status = 'detected';
       return result;
-    } catch (error) { page.error = asFault(error); page.status = 'error'; throw page.error; }
-    finally { page.busy = false; if (type === 'play' && --this.pendingPlays === 0) this.earlyEvents.clear(); }
+    } catch (error) {
+      const failure = asFault(error);
+      if (type !== 'play' || page.playOperation === operationId) { page.error = failure; page.status = 'error'; }
+      throw failure;
+    }
+    finally { page.busy = false; if (page.playOperation === operationId) page.playOperation = undefined; if (type === 'play' && --this.pendingPlays === 0) this.earlyEvents.clear(); }
   }
   private async fromPage(message: any, sender: Sender) {
     const tabId = sender.tab?.id; if (tabId === undefined) throw fault('FORBIDDEN', '缺少页面来源。');
@@ -126,7 +161,8 @@ export class BridgeController {
     if (frameId === 0 && message.pageUrl !== page.pageUrl) return { enabled: false };
     if (message.type === 'pageHello') {
       if (frameId === 0 && typeof message.nonce === 'string' && page.nonce !== message.nonce) {
-        page.nonce = message.nonce; page.pageKey = crypto.randomUUID(); this.store.navigate(tabId, page.pageKey, page.pageUrl);
+        this.cancelPending(page);
+        page.nonce = message.nonce; page.pageKey = crypto.randomUUID(); page.mediaHeaders.clear(); this.store.navigate(tabId, page.pageKey, page.pageUrl);
       }
       return { enabled: this.enabled(page.pageUrl), pageKey: page.pageKey, pageUrl: page.pageUrl };
     }
@@ -134,8 +170,18 @@ export class BridgeController {
     if (message.type === 'pageError') { page.error = fault('PAGE_LOGIN_REQUIRED', '请先在网页正常登录并开始播放。'); return { accepted: true }; }
     const url = safeMediaUrl(message.url); if (!url) return { accepted: false };
     const fromCycani = frameId === 0 && new URL(page.pageUrl).hostname === 'www.cycani.org' && message.source === 'cycani' && /^\d+$/.test(message.sectionId);
-    const format = classifyMedia(url); if (!format && !fromCycani) return { accepted: false };
-    this.store.add({ id: crypto.randomUUID(), tabId, frameId, pageKey: page.pageKey, pageUrl: page.pageUrl, title: page.title, source: fromCycani ? 'cycani' : 'dom', sectionId: fromCycani ? message.sectionId : undefined, url, format: format ?? 'unknown', capturedAt: Date.now(), headersByOrigin: {} });
+    const fromBilibili = frameId === 0 && ['www.bilibili.com', 'live.bilibili.com'].includes(new URL(page.pageUrl).hostname) && message.source === 'bilibili' && typeof message.contentId === 'string' && message.contentId.length <= 200;
+    const video = fromBilibili && message.video ? sanitizeTrack(message.video) : undefined;
+    const audio = fromBilibili && message.audio ? sanitizeTrack(message.audio) : undefined;
+    if ((message.video && !video) || (message.audio && !audio) || (video && video.url !== url)) return { accepted: false };
+    const format = video ? 'dash' : classifyMedia(url); if (!format && !fromCycani) return { accepted: false };
+    const headersByOrigin: MediaCandidate['headersByOrigin'] = {};
+    if (fromBilibili) for (const raw of [url, ...(video?.backupUrls ?? []), audio?.url, ...(audio?.backupUrls ?? [])]) {
+      if (!raw) continue;
+      const origin = new URL(raw).origin;
+      headersByOrigin[origin] = { referer: new URL(page.pageUrl).origin + '/', ...(this.io.userAgent ? { 'user-agent': this.io.userAgent } : {}), ...page.mediaHeaders.get(`${frameId}:${origin}`) };
+    }
+    this.store.add({ id: crypto.randomUUID(), tabId, frameId, pageKey: page.pageKey, pageUrl: page.pageUrl, title: page.title, source: fromCycani ? 'cycani' : fromBilibili ? 'bilibili' : 'dom', sectionId: fromCycani ? message.sectionId : undefined, url, format: format ?? 'unknown', capturedAt: Date.now(), headersByOrigin, video: video || undefined, audio: audio || undefined, quality: fromBilibili && typeof message.quality === 'string' ? message.quality.slice(0, 100) : undefined, contentId: fromBilibili ? message.contentId : undefined, live: fromBilibili && message.live === true });
     if (!page.busy && !page.sessionId) { page.status = 'detected'; page.error = undefined; }
     return { accepted: true };
   }
@@ -150,7 +196,7 @@ export class BridgeController {
     this.store.replace(updated); return updated;
   }
   async onNativeEvent(event: HostEvent): Promise<void> {
-    if (event.type === 'disconnected') { for (const page of this.pages.values()) if (page.sessionId) { page.sessionId = undefined; page.error = event.error; page.status = 'error'; } this.sessions.clear(); return; }
+    if (event.type === 'disconnected') { for (const page of this.pages.values()) { page.playOperation = undefined; if (page.sessionId || page.busy) { page.sessionId = undefined; page.error = event.error; page.status = 'error'; } } this.sessions.clear(); return; }
     const session = event.sessionId && this.sessions.get(event.sessionId);
     if (!session) {
       if (this.pendingPlays && event.sessionId && this.earlyEvents.size < 32) {

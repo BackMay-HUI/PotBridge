@@ -57,3 +57,33 @@ test('diagnostic URL summaries hide signed paths and queries', () => {
   assert.equal(summary, 'https://cdn.example/….m3u8');
   assert.ok(!summary.includes('secret') && !summary.includes('password'));
 });
+
+test('many Bilibili representations cannot evict the preferred compatible video', () => {
+  const store=new CandidateStore(4);store.navigate(1,'page','https://www.bilibili.com/video/BV123/');
+  const candidate=(id:string,codecs:string,time:number):any=>({id,tabId:1,frameId:0,pageKey:'page',pageUrl:'https://www.bilibili.com/video/BV123/',title:'Video',source:'bilibili',format:'dash',url:`https://video.example/${id}.m4s`,video:{id,url:`https://video.example/${id}.m4s`,height:1080,codecs},audio:{url:'https://audio.example/a.m4s'},capturedAt:time,headersByOrigin:{},contentId:'cid:99'});
+  store.add(candidate('avc','avc1.640028',1));
+  for(let i=0;i<20;i++)store.add(candidate(`av1-${i}`,'av01.0.08M.08',100+i));
+  assert.ok(store.list(1).some(c=>c.id==='avc'));
+  assert.equal(store.list(1)[0].id,'avc');
+});
+
+test('later network MIME observations cannot downgrade a structured pair to a silent MP4', () => {
+  const store=new CandidateStore();store.navigate(1,'page-1','https://www.bilibili.com/video/BV123/');
+  const url='https://video.example/opaque-media';
+  store.add({...candidate(url),source:'bilibili',contentId:'cid:99',format:'dash',video:{url,id:'80'},audio:{url:'https://audio.example/audio.m4s'}});
+  store.add({...candidate(url,'page-1',2),format:'mp4'});
+  const current=store.list(1)[0];
+  assert.equal(current.format,'dash');assert.ok(current.audio);assert.equal(current.source,'bilibili');
+});
+
+test('generic DASH and HLS manifests remain the default ahead of later MP4 fragments', () => {
+  for (const format of ['dash', 'hls'] as const) {
+    const store = new CandidateStore();
+    store.navigate(1, 'page-1', 'https://site.example/episode/1');
+    store.add({ ...candidate('https://cdn.example/manifest', 'page-1', 1), format });
+    for (let i = 0; i < 30; i++) store.add({ ...candidate(`https://cdn.example/segment-${i}`, 'page-1', 10 + i), format: 'mp4' });
+    assert.equal(store.list(1).length, 20);
+    assert.equal(store.list(1)[0].format, format);
+    assert.equal(store.list(1)[0].url, 'https://cdn.example/manifest');
+  }
+});

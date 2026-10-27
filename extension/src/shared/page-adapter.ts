@@ -8,15 +8,15 @@ interface PageEnvironment {
 }
 interface RefreshContext { url: string; sectionId: string; pageUrl: string; headers: Headers; credentials: RequestCredentials; referrerPolicy?: ReferrerPolicy; used: boolean }
 
-async function smallJSON(response: Response): Promise<any> {
-  if (Number(response.headers.get('content-length')) > 256 * 1024) return null;
+export async function smallJSON(response: Response, limit = 256 * 1024): Promise<any> {
+  if (Number(response.headers.get('content-length')) > limit) return null;
   const reader = response.body?.getReader(); if (!reader) return null;
   const decoder = new TextDecoder(); let text = '', total = 0;
   try {
     while (true) {
       const { value, done } = await reader.read(); if (done) break;
       total += value.length;
-      if (total > 256 * 1024) { void reader.cancel().catch(() => {}); return null; }
+      if (total > limit) { void reader.cancel().catch(() => {}); return null; }
       text += decoder.decode(value, { stream: true });
     }
     return JSON.parse(text + decoder.decode());

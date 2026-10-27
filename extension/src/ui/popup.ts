@@ -8,14 +8,14 @@ let state: TabState = { pageUrl: '', enabled: false, candidates: [], status: 'un
 const play = element<HTMLButtonElement>('play'), probe = element<HTMLButtonElement>('probe'), refresh = element<HTMLButtonElement>('refresh');
 function render() {
   if (!state.candidates.some(c => c.id === selected)) selected = state.candidates[0]?.id ?? '';
-  const view = statusView(state, busy, connected);
+  const view = statusView(state, busy, connected, selected);
   renderCandidates(element('sources'), state.candidates, selected);
   element('empty').hidden = !!state.candidates.length;
   element('source-count').textContent = `${state.candidates.length} 个`;
   element('status-label').textContent = view.label; element('status-detail').textContent = view.detail;
   element('feedback').dataset.tone = view.tone;
   play.disabled = !view.canPlay; play.querySelector('span')!.textContent = busy ? '正在检查…' : '用 PotPlayer 播放';
-  probe.disabled = !view.canPlay; refresh.disabled = busy || !state.candidates.some(c => c.id === selected && c.source === 'cycani');
+  probe.disabled = !view.canInspect; refresh.disabled = busy || !state.candidates.some(c => c.id === selected && c.source === 'cycani');
   element<HTMLButtonElement>('detect').disabled = busy;
   element<HTMLInputElement>('site-enabled').checked = state.enabled;
   element<HTMLInputElement>('site-enabled').disabled = busy || !isExtension;
@@ -49,7 +49,7 @@ async function init() {
   try { element('site-host').textContent = new URL(tab?.url ?? '').hostname; } catch {}
   try { await loadState(); } catch (error) { actionNotice = errorMessage(error); }
   try { await rpc('hello'); connected = true; element('connection').innerHTML = '<i aria-hidden="true"></i>本机已连接'; element('connection').classList.add('is-connected'); }
-  catch { element('connection').innerHTML = '<i aria-hidden="true"></i>本机未连接'; }
+  catch (error) { element('connection').innerHTML = '<i aria-hidden="true"></i>本机未连接'; actionNotice = errorMessage(error); }
   render();
   setInterval(() => { if (!busy) void loadState().catch(() => {}); }, 1500);
 }

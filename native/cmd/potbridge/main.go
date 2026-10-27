@@ -6,8 +6,6 @@ import (
 	"os"
 	"potbridge/native/internal/host"
 	"potbridge/native/internal/platform"
-	"potbridge/native/internal/protocol"
-	"sync"
 )
 
 func main() {
@@ -17,22 +15,7 @@ func main() {
 	}
 	h := host.New(config, os.Stdout)
 	defer h.Close()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	var wg sync.WaitGroup
-	limit := make(chan struct{}, 8)
-	for {
-		body, err := protocol.Read(os.Stdin)
-		if err != nil {
-			if err != io.EOF {
-				os.Stderr.WriteString("PotBridge: invalid or interrupted native message\n")
-			}
-			break
-		}
-		limit <- struct{}{}
-		wg.Add(1)
-		go func(data []byte) { defer wg.Done(); defer func() { <-limit }(); h.Handle(ctx, data) }(body)
+	if err := h.Serve(context.Background(), os.Stdin); err != nil && err != io.EOF {
+		os.Stderr.WriteString("PotBridge: invalid or interrupted native message\n")
 	}
-	cancel()
-	wg.Wait()
 }

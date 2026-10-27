@@ -51,3 +51,35 @@ func TestLaunchPassesMediaAsOneArgumentWithoutShell(t *testing.T) {
 	}
 	t.Fatal("test player did not receive the launch arguments")
 }
+
+func TestLaunchPassesExternalAudioAsAnIndependentArgument(t *testing.T) {
+	directory := t.TempDir()
+	executable := filepath.Join(directory, "Player with spaces.exe")
+	binary, err := os.ReadFile(os.Args[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = os.WriteFile(executable, binary, 0700); err != nil {
+		t.Fatal(err)
+	}
+	output := filepath.Join(directory, "args.json")
+	t.Setenv("POTBRIDGE_TEST_PLAYER_OUTPUT", output)
+	video := "http://127.0.0.1:49152/s/token/root/media.mp4?x=1&y=2"
+	audio := "http://127.0.0.1:49152/s/token/audio/media.mp4?x=3&y=4"
+	if err = LaunchPlayerWithAudio(executable, video, audio); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		data, readErr := os.ReadFile(output)
+		var args []string
+		if readErr == nil && json.Unmarshal(data, &args) == nil {
+			if len(args) != 2 || args[0] != video || args[1] != "/aud="+audio {
+				t.Fatalf("unexpected paired arguments: %v", args)
+			}
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatal("test player did not receive paired arguments")
+}

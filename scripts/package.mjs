@@ -20,7 +20,7 @@ for (const file of ['install-host.ps1', 'uninstall-host.ps1']) await cp(join(roo
 await cp(join(root, 'README.md'), join(destination, 'README.md'));
 await cp(join(root, 'docs/acceptance.md'), join(destination, 'ACCEPTANCE.md'));
 await mkdir(join(destination, 'docs'), { recursive: true });
-for (const file of ['acceptance.md', 'release-check.md', 'review-v01.md', 'protocol.md']) await cp(join(root, 'docs', file), join(destination, 'docs', file));
+for (const file of ['acceptance.md', 'release-check.md', 'review-v01.md', 'review-v02.md', 'protocol.md']) await cp(join(root, 'docs', file), join(destination, 'docs', file));
 await cp(join(root, 'CHANGELOG.md'), join(destination, 'CHANGELOG.md'));
 async function files(directory) {
   const entries = await readdir(directory, { withFileTypes: true });

@@ -37,7 +37,15 @@ export class NativeClient {
     if (this.port) return this.port;
     const port = this.connect(); this.port = port;
     port.onMessage.addListener((message: HostResponse & HostEvent) => {
-      if (message?.protocolVersion !== 1) return;
+      if (message?.protocolVersion !== 2) {
+        const pending = message?.requestId && this.pending.get(message.requestId);
+        if (pending) {
+          this.pending.delete(message.requestId); clearTimeout(pending.timer);
+          pending.reject({ code: 'VERSION_MISMATCH', message: '扩展与本机组件版本不一致，请更新并重新安装 v0.2 本机组件。' });
+          this.scheduleIdle();
+        }
+        return;
+      }
       if (typeof message.requestId === 'string' && this.pending.has(message.requestId)) {
         const pending = this.pending.get(message.requestId)!; this.pending.delete(message.requestId); clearTimeout(pending.timer);
         if (message.ok) {
@@ -57,7 +65,7 @@ export class NativeClient {
       this.port = undefined; this.sessions.clear();
       const error = disconnectFault(detail);
       for (const p of this.pending.values()) { clearTimeout(p.timer); p.reject(error); }
-      this.pending.clear(); this.event({ protocolVersion: 1, type: 'disconnected', error });
+      this.pending.clear(); this.event({ protocolVersion: 2, type: 'disconnected', error });
     });
     return port;
   }
@@ -69,7 +77,7 @@ export class NativeClient {
       const requestId = crypto.randomUUID();
       const timer = setTimeout(() => { this.pending.delete(requestId); reject({ code: 'NATIVE_TIMEOUT', message: '本机操作超时，请检查网络设置后重试。' }); this.scheduleIdle(); }, this.timeout);
       this.pending.set(requestId, { resolve, reject, timer, type, payload });
-      try { port.postMessage({ protocolVersion: 1, requestId, type, ...payload }); }
+      try { port.postMessage({ protocolVersion: 2, requestId, type, ...payload }); }
       catch { clearTimeout(timer); this.pending.delete(requestId); reject({ code: 'NATIVE_DISCONNECTED', message: '无法向本机组件发送请求。' }); this.close(); }
     });
   }

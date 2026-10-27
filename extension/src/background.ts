@@ -8,10 +8,11 @@ const controller = new BridgeController({
   extensionBase: chrome.runtime.getURL(''), getTab: id => chrome.tabs.get(id),
   sendToTab: (id, message, frameId) => chrome.tabs.sendMessage(id, message, frameId === undefined ? {} : { frameId }),
   native: (type, payload) => native.request(type, payload),
+  userAgent: navigator.userAgent,
   saveSettings: async settings => { await chrome.storage.local.set({ settings }); await registerAdapter(settings); },
 });
 async function registerAdapter(settings: ExtensionSettings) {
-  const matches = settings.enabledOrigins.filter(origin => { try { return ['www.cycani.org', 'cycani.org'].includes(new URL(origin).hostname); } catch { return false; } }).map(origin => origin + '/*');
+  const matches = settings.enabledOrigins.filter(origin => { try { return ['www.cycani.org', 'cycani.org', 'www.bilibili.com', 'live.bilibili.com'].includes(new URL(origin).hostname); } catch { return false; } }).map(origin => origin + '/*');
   const registered = await chrome.scripting.getRegisteredContentScripts({ ids: ['potbridge-page'] });
   if (registered.length) await chrome.scripting.unregisterContentScripts({ ids: ['potbridge-page'] });
   if (matches.length) await chrome.scripting.registerContentScripts([{ id: 'potbridge-page', matches, js: ['page.js'], runAt: 'document_start', world: 'MAIN', persistAcrossSessions: true }]);

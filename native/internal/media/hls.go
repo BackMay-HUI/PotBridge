@@ -2,6 +2,7 @@ package media
 
 import (
 	"bytes"
+	"encoding/binary"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -171,6 +172,9 @@ func DetectMedia(rawURL string, headers map[string][]string, body []byte) string
 	}
 	if len(body) >= 8 && (string(body[4:8]) == "ftyp" || string(body[4:8]) == "styp") {
 		return "mp4"
+	}
+	if len(body) >= 9 && string(body[:3]) == "FLV" && body[3] == 1 && body[4]&^byte(5) == 0 && binary.BigEndian.Uint32(body[5:9]) >= 9 && binary.BigEndian.Uint32(body[5:9]) <= 1024*1024 {
+		return "flv"
 	}
 	return ""
 }

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 import { stripTypeScriptTypes } from 'node:module';
-import { classifyMedia, safeMediaUrl } from '../extension/src/shared/media.ts';
+import { classifyMedia, safeMediaUrl, sanitizeTrack } from '../extension/src/shared/media.ts';
 
 async function harness() {
   const sent: any[] = [], controls: any[] = [];
@@ -12,7 +12,7 @@ async function harness() {
   const entries = [{ name: oldURL, startTime: 5 }];
   let tick: () => void = () => {}, listener: (e: any) => void = () => {};
   const window = { addEventListener: (_: string, fn: any) => { listener = fn; }, postMessage: (m: any) => controls.push(m) };
-  const context = vm.createContext({ window, location, crypto, classifyMedia, safeMediaUrl,
+  const context = vm.createContext({ window, location, crypto, classifyMedia, safeMediaUrl, sanitizeTrack,
     document: { querySelectorAll: () => [{ src: oldURL }], addEventListener: () => {} }, HTMLMediaElement: class {},
     performance: { getEntriesByType: () => entries, now: () => 10 }, setTimeout, clearTimeout,
     setInterval: (fn: () => void) => { tick = fn; },
@@ -43,4 +43,27 @@ test('fast SPA adapter responses synchronize the page generation before forwardi
   assert.equal(latest.pageUrl, h.location.href); assert.equal(latest.pageKey, h.location.href);
   assert.equal(latest.url, 'https://cdn.example/episode10.m3u8');
   assert.ok(h.controls.filter(m => m.type === 'clear').every(m => m.pageUrl !== undefined));
+});
+
+test('structured Bilibili pairs survive isolated-world forwarding without accepting bare m4s fragments', async () => {
+  const h = await harness();
+  const video = { url: 'https://video.example/v.m4s', codecs: 'avc1.640028', id: '80' };
+  const audio = { url: 'https://audio.example/a.m4s', codecs: 'mp4a.40.2' };
+  h.message({ type: 'candidate', source: 'bilibili', pageUrl: h.location.href, url: video.url, video, audio, quality: '1080P', contentId: 'cid:99' });
+  await h.settle();
+  const latest = h.sent.filter(m => m.type === 'pageCandidate').at(-1);
+  assert.deepEqual(latest.video, video); assert.deepEqual(latest.audio, audio); assert.equal(latest.contentId, 'cid:99');
+});
+
+test('structured forwarding keeps later audio, changed audio and backup metadata for one video URL', async () => {
+  const h = await harness();
+  const video = { url: 'https://video.example/v.m4s', codecs: 'avc1.640028' };
+  const base = { type: 'candidate', source: 'bilibili', pageUrl: h.location.href, url: video.url, video, contentId: 'cid:99' };
+  const updates = [base, { ...base, audio: { url: 'https://audio.example/a.m4s' } }, { ...base, audio: { url: 'https://audio.example/b.m4s' } }, { ...base, video: { ...video, backupUrls: ['https://backup.example/v.m4s'], bandwidth: 9000 }, audio: { url: 'https://audio.example/b.m4s' }, quality: '1080P' }];
+  for (const update of updates) { h.message(update); await h.settle(); h.message(update); await h.settle(); }
+  const forwarded = h.sent.filter(m => m.type === 'pageCandidate' && m.source === 'bilibili');
+  assert.equal(forwarded.length, 4);
+  assert.equal(forwarded[1].audio.url, 'https://audio.example/a.m4s');
+  assert.equal(forwarded[2].audio.url, 'https://audio.example/b.m4s');
+  assert.equal(forwarded[3].video.bandwidth, 9000);
 });

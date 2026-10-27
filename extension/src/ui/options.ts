@@ -7,6 +7,7 @@ function feedback(message: string, success = false) { const box = element('setti
 function proxyVisibility() { element('proxy-url-wrap').hidden = element<HTMLSelectElement>('proxy-mode').value !== 'manual'; }
 async function check() {
   element('host-status').textContent = '正在检查本机组件…';
+  element('settings-feedback').hidden = true;
   try {
     const result = await rpc('hello'); const config = result.config as HostConfig;
     input('player-path').value = config.playerPath; input('proxy-url').value = config.proxyUrl;

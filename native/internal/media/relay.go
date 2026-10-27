@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -18,9 +19,10 @@ import (
 
 type EventSink func(map[string]any)
 type SessionInfo struct {
-	ID    string `json:"id"`
-	URL   string `json:"url"`
-	Title string `json:"title"`
+	ID       string `json:"id"`
+	URL      string `json:"url"`
+	Title    string `json:"title"`
+	AudioURL string `json:"audioUrl,omitempty"`
 }
 type Summary struct {
 	ID           string `json:"id"`
@@ -38,6 +40,7 @@ type session struct {
 	candidate    Candidate
 	info         SessionInfo
 	resources    map[string]Resource
+	dashOrigins  map[string]string
 	windows      map[string]map[string]bool
 	order        []string
 	summary      Summary
@@ -105,10 +108,19 @@ func (r *Relay) Create(c Candidate) (SessionInfo, error) {
 	s := &session{candidate: c, resources: map[string]Resource{}, ctx: ctx, cancel: cancel, summary: Summary{ID: id, Title: c.Title, Format: c.Format, State: "sent", CreatedAt: now, LastActivity: now}}
 	s.info = SessionInfo{ID: id, Title: c.Title, URL: r.baseURL + "/s/" + id + "/root/media" + mediaSuffix(c.URL, c.Format)}
 	s.resources["root"] = Resource{URL: c.URL, Kind: "root"}
+	if c.Video != nil {
+		s.info.URL = r.baseURL + "/s/" + id + "/root/media.mp4"
+		s.info.AudioURL = r.baseURL + "/s/" + id + "/audio/media.mp4"
+		s.resources["root"] = Resource{URL: c.URL, Kind: "video"}
+		s.resources["audio"] = Resource{URL: c.Audio.URL, Kind: "audio-track"}
+	}
 	r.sessions[id] = s
 	return s.info, nil
 }
 func mediaSuffix(raw, kind string) string {
+	if kind == "dash" || kind == "dash-manifest" {
+		return ".mpd"
+	}
 	if kind == "hls" || kind == "playlist" || kind == "audio" || kind == "subtitle" || kind == "iframe" {
 		return ".m3u8"
 	}
@@ -302,7 +314,8 @@ func (r *Relay) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	parts := strings.Split(strings.Trim(req.URL.Path, "/"), "/")
-	if len(parts) != 4 || parts[0] != "s" {
+	dashPath := len(parts) >= 4 && parts[2] == "dash"
+	if (len(parts) != 4 && !dashPath) || parts[0] != "s" {
 		w.WriteHeader(404)
 		return
 	}
@@ -315,6 +328,9 @@ func (r *Relay) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 	s.mu.Lock()
 	resource, ok := s.resources[parts[2]]
+	if dashPath {
+		resource, ok = dashRequestResource(s, req.URL)
+	}
 	c := s.candidate
 	if ok {
 		s.active++
@@ -338,12 +354,19 @@ func (r *Relay) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	stop := context.AfterFunc(s.ctx, cancel)
 	defer func() { stop(); cancel() }()
 	playlist := playlistResource(resource) || (resource.Kind == "root" && c.Format == "hls")
+	dash := resource.Kind == "dash-manifest" || (resource.Kind == "root" && c.Format == "dash" && c.Video == nil)
 	extra := req.Header.Clone()
 	method := req.Method
-	if playlist {
+	if playlist || dash {
 		extra.Del("Range")
 		extra.Del("If-Range")
 		method = "GET"
+	}
+	// Some Bilibili VOD CDNs reject otherwise valid requests without Range.
+	// Probe already uses one, but a player's first GET/HEAD may omit it.
+	fallbackRange := c.Source == "bilibili" && !c.Live && !playlist && !dash && (c.Video != nil || c.Format == "mp4" || c.Format == "flv") && extra.Get("Range") == ""
+	if fallbackRange {
+		extra.Set("Range", "bytes=0-")
 	}
 	res, err := r.client.Fetch(ctx, c, resource.URL, method, extra)
 	if err != nil {
@@ -361,13 +384,26 @@ func (r *Relay) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, f.Message, 502)
 		return
 	}
+	if fallbackRange && res.StatusCode == http.StatusPartialContent && completeByteRange(res.Header.Get("Content-Range"), res.ContentLength) {
+		// The client requested a whole file. Normalize only a proven complete
+		// zero-based response; a CDN-capped partial range must remain partial.
+		res.StatusCode = http.StatusOK
+		res.Header.Del("Content-Range")
+	}
 	for _, name := range []string{"Content-Type", "Content-Length", "Content-Range", "Accept-Ranges", "ETag", "Last-Modified"} {
 		if value := res.Header.Get(name); value != "" {
 			w.Header().Set(name, value)
 		}
 	}
+	if resource.Kind == "dash-clock" && res.Header.Get("Date") != "" {
+		w.Header().Set("Date", res.Header.Get("Date"))
+	}
 	if res.StatusCode == 416 {
 		w.WriteHeader(416)
+		return
+	}
+	if dash {
+		r.serveDASH(w, req, s, res)
 		return
 	}
 	if playlist {
@@ -432,4 +468,18 @@ func (r *Relay) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if e != nil && req.Context().Err() == nil && s.ctx.Err() == nil {
 		r.sessionFault(s, Failure("STREAM_INTERRUPTED", resource.Kind, "媒体传输中断，请检查网络后重试。"))
 	}
+}
+
+func completeByteRange(value string, contentLength int64) bool {
+	value, ok := strings.CutPrefix(value, "bytes 0-")
+	if !ok {
+		return false
+	}
+	end, total, ok := strings.Cut(value, "/")
+	if !ok {
+		return false
+	}
+	last, err := strconv.ParseUint(end, 10, 63)
+	size, sizeErr := strconv.ParseUint(total, 10, 63)
+	return err == nil && sizeErr == nil && size > 0 && last+1 == size && (contentLength < 0 || contentLength == int64(size))
 }

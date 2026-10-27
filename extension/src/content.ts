@@ -1,4 +1,4 @@
-import { classifyMedia, safeMediaUrl } from './shared/media.ts';
+import { classifyMedia, safeMediaUrl, sanitizeTrack } from './shared/media.ts';
 
 let pageKey = '', pageUrl = location.href, topPageUrl = location.href, enabled = false;
 let nonce = crypto.randomUUID();
@@ -27,11 +27,17 @@ function synchronize(): Promise<void> {
   if (!handshake) handshake = hello();
   return handshake;
 }
-function candidate(raw: string, source = 'dom', sectionId?: string) {
-  const url = safeMediaUrl(raw); if (!enabled || !pageKey || !url || (source !== 'cycani' && !classifyMedia(url))) return;
-  const key = `${pageKey}:${url}:${source}`; if (seen.has(key)) return;
+function candidate(raw: string, source = 'dom', sectionId?: string, extra: Record<string, unknown> = {}) {
+  const structured = source === 'bilibili' && !!extra.video;
+  if (structured) {
+    const video = sanitizeTrack(extra.video), audio = extra.audio ? sanitizeTrack(extra.audio) : undefined;
+    if (!video || (extra.audio && !audio) || typeof extra.contentId !== 'string' || extra.contentId.length > 200) return;
+    extra = { video, audio, contentId: extra.contentId, quality: typeof extra.quality === 'string' ? extra.quality.slice(0, 100) : undefined, live: extra.live === true };
+  }
+  const url = safeMediaUrl(raw); if (!enabled || !pageKey || !url || (source !== 'cycani' && !structured && !classifyMedia(url))) return;
+  const key = `${pageKey}:${url}:${source}:${structured ? JSON.stringify(extra) : ''}`; if (seen.has(key)) return;
   if (seen.size >= 128) seen.delete(seen.values().next().value!); seen.add(key);
-  void send({ type: 'pageCandidate', pageKey, pageUrl: topPageUrl, url, source, sectionId });
+  void send({ type: 'pageCandidate', pageKey, pageUrl: topPageUrl, url, source, sectionId, ...extra });
 }
 function scan() {
   if (!enabled) return;
@@ -48,7 +54,7 @@ window.addEventListener('message', async event => {
   const data = event.data; if (data.pageUrl !== location.href) return;
   await synchronize();
   if (!enabled || data.pageUrl !== location.href) return;
-  if (data.type === 'candidate') candidate(data.url, data.source, data.sectionId);
+  if (data.type === 'candidate') candidate(data.url, data.source, data.sectionId, data.source === 'bilibili' ? { video: data.video, audio: data.audio, quality: data.quality, contentId: data.contentId, live: data.live } : {});
   if (data.type === 'page-error') void send({ type: 'pageError', pageKey, pageUrl: topPageUrl });
   if (data.type === 'refreshed' && refreshes.has(data.requestId)) {
     const pending = refreshes.get(data.requestId)!; clearTimeout(pending.timer); refreshes.delete(data.requestId);

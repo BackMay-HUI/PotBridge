@@ -18,14 +18,16 @@ test('actual Windows host speaks framed JSON, rejects versions and private media
       data = data.subarray(4 + size); pending.get(response.requestId)?.resolve(response); pending.delete(response.requestId);
     }
   });
-  const request = (id: string, type: string, extra: object = {}, version = 1): Promise<any> => new Promise((resolve, reject) => {
+  const request = (id: string, type: string, extra: object = {}, version = 2): Promise<any> => new Promise((resolve, reject) => {
     pending.set(id, { resolve, reject });
     const body = Buffer.from(JSON.stringify({ protocolVersion: version, requestId: id, type, ...extra }));
     const header = Buffer.alloc(4); header.writeUInt32LE(body.length); child.stdin.write(Buffer.concat([header, body]));
   });
   try {
     const hello = await request('hello', 'hello');
-    assert.equal(hello.ok, true); assert.equal(hello.result.version, '0.1.0');
+    assert.equal(hello.ok, true); assert.equal(hello.result.version, '0.2.0');
+    const legacy = await request('legacy', 'hello', {}, 1);
+    assert.equal(legacy.error.code, 'VERSION_MISMATCH');
     const wrong = await request('wrong', 'hello', {}, 99);
     assert.equal(wrong.error.code, 'VERSION_MISMATCH');
     const invalid = await request('private', 'probe', { candidate: { url: 'http://127.0.0.1:1/private.mp4' } });

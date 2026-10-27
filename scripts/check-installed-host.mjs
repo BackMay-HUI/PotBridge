@@ -12,7 +12,7 @@ if (manifest.name !== 'com.potbridge.host' || resolve(manifest.path) !== resolve
 const digest = file => createHash('sha256').update(readFileSync(file)).digest('hex');
 if (digest(executable) !== digest(resolve('native/bin/potbridge.exe'))) throw new Error('Installed host differs from the current build.');
 function request(type, payload = {}) {
-const message = Buffer.from(JSON.stringify({ protocolVersion: 1, requestId: 'installation-check', type, ...payload }));
+const message = Buffer.from(JSON.stringify({ protocolVersion: 2, requestId: 'installation-check', type, ...payload }));
 const length = Buffer.alloc(4); length.writeUInt32LE(message.length);
 const result = spawnSync(executable, [], { input: Buffer.concat([length, message]), timeout: 15000, windowsHide: true });
 if (result.error) throw result.error;
