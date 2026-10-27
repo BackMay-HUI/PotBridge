@@ -18,6 +18,16 @@ PotBridge 是面向 Windows 与 Microsoft Edge 的个人媒体桥接扩展。它
 
 **v0.2.0** 已由用户确认 B 站普通视频的画面、声音和拖动，以及无刷新切换、HTTP-FLV 直播和代表性 DASH 播放正常。自动化结果与实际样本分别记录在 [验收记录](docs/acceptance.md)，不意味着兼容所有网站、编码和网络环境。
 
+## v0.3 外观设计预览
+
+v0.3 正在设计五款可切换主题：**月下礼仪（樱小路露娜）**、瓷白、深蓝时刻、云母、墨绿。共用操作布局，各自定义字体、配色、材质与装饰，并覆盖弹窗和设置页。
+
+![露娜主题的 560×600 弹窗设计稿](docs/design/v0.3/previews/luna-popup.png)
+
+查看 [设计规范](docs/v0.3-design.md)、[预览启动说明](docs/design/v0.3/README.md) 和 [设计检查记录](docs/design/v0.3/verification.md)。在仓库根目录运行 `node docs/design/v0.3/serve.mjs`，打开 <http://127.0.0.1:4173/>，即可切换主题、页面与示例状态。
+
+这是使用模拟数据的交互设计稿，尚未接入正式扩展；当前可安装版本仍为下面的 **v0.2.0**。露娜图像为生成的同人立绘，人物参考和提示词见设计目录。
+
 ## 下载
 
 安装包见 [Releases](https://github.com/BackMay-HUI/PotBridge/releases)：`PotBridge-0.2.0-windows-x64.zip`；只有源码时，请按下文先构建、打包。可用同名 `.zip.sha256` 核对下载文件：

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PotBridge v0.3 · 主题设计室</title>
+  <link rel="stylesheet" href="studio.css">
+</head>
+<body>
+  <aside class="studio-sidebar">
+    <a class="studio-brand" href="index.html"><span class="studio-mark">P<span>↗</span></span>PotBridge<span class="edition">DESIGN / 03</span></a>
+    <div class="studio-intro"><span class="kicker">一种习惯，五种心情。</span><h1>换个主题。<br>还是你的映桥。</h1><p>为每一次打开，<br>留一点喜欢的样子。</p></div>
+    <fieldset class="theme-picker"><legend>01 — 选择主题</legend><div id="themes"></div></fieldset>
+    <div class="state-picker"><label for="sample-state">02 — 示例状态</label><select id="sample-state"><option value="ready">媒体已就绪</option><option value="empty">尚未发现媒体</option><option value="offline">本机未连接</option><option value="missing">缺少音轨</option><option value="error">媒体请求失败</option><option value="disabled">站点未启用</option></select></div>
+    <div class="studio-note"><span class="note-rule"></span><p>同一套操作，五种视觉语言。<br>主题同时应用于弹窗和设置页。</p><span class="prototype-tag">交互设计稿 · 示例数据</span></div>
+  </aside>
+  <main class="studio-main">
+    <header class="studio-toolbar">
+      <div class="view-tabs" role="group" aria-label="预览界面"><button id="popup-view" aria-pressed="true">扩展弹窗</button><button id="settings-view" aria-pressed="false">设置页面</button></div>
+      <a id="standalone" href="screen.html?theme=luna" target="_blank" rel="noopener">单独打开 <span aria-hidden="true">↗</span></a>
+    </header>
+    <section class="preview-stage" aria-label="所选主题预览">
+      <div class="preview-caption"><span id="theme-index">THEME 01 / 05</span><span id="size-label">560 × 600 · 实际尺寸</span></div>
+      <iframe id="preview" src="screen.html?theme=luna" title="月下礼仪主题的扩展弹窗预览" width="560" height="600"></iframe>
+      <div class="theme-description"><h2 id="theme-name">月下礼仪</h2><p id="theme-description">银白发与红瞳，化作一页安静的月光。樱小路露娜主题。</p><div id="theme-swatches" class="swatches" aria-hidden="true"></div></div>
+    </section>
+    <footer class="studio-footer"><span>PotBridge v0.3 / Appearance study</span><span>本地设计预览 · 不连接播放器</span></footer>
+  </main>
+  <script type="module" src="studio.js"></script>
+</body>
+</html>
