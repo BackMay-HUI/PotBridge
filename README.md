@@ -20,7 +20,9 @@ PotBridge 是面向 Windows 与 Microsoft Edge 的个人媒体桥接扩展。它
 
 ## v0.3 五款主题
 
-**v0.3.0 已将五款主题接入正式扩展**，弹窗与设置页同步切换，默认使用露娜主题。点击弹窗右上角的调色板，或在设置页「外观与主题」选择；主题立即应用并自动保存。
+**v0.3.1 已将五款主题接入正式扩展**，弹窗与设置页同步切换，默认使用露娜主题。点击弹窗右上角的调色板，或在设置页「外观与主题」选择；主题立即应用并自动保存。
+
+v0.3.1 修复了 v0.3.0 在 Edge 工具栏打开时收缩为竖条的问题。用户已确认修复版完整显示、换肤与播放正常；验证范围见 [验收记录](docs/acceptance.md)。
 
 | 主题 | 风格 |
 | --- | --- |
@@ -36,10 +38,10 @@ PotBridge 是面向 Windows 与 Microsoft Edge 的个人媒体桥接扩展。它
 
 ## 下载
 
-安装包见 [v0.3.0 Release](https://github.com/BackMay-HUI/PotBridge/releases/tag/v0.3.0)：`PotBridge-0.3.0-windows-x64.zip`；只有源码时，请按下文先构建、打包。可用同名 `.zip.sha256` 核对下载文件：
+安装包见 [v0.3.1 Release](https://github.com/BackMay-HUI/PotBridge/releases/tag/v0.3.1)：`PotBridge-0.3.1-windows-x64.zip`；只有源码时，请按下文先构建、打包。可用同名 `.zip.sha256` 核对下载文件：
 
 ```powershell
-Get-FileHash .\PotBridge-0.3.0-windows-x64.zip -Algorithm SHA256
+Get-FileHash .\PotBridge-0.3.1-windows-x64.zip -Algorithm SHA256
 ```
 
 ## 安装
