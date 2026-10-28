@@ -1,32 +1,23 @@
 <!doctype html>
-<html lang="zh-CN">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>PotBridge · 映桥</title></head>
+<html lang="zh-CN" data-theme="luna">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>PotBridge · 映桥</title><script src="/theme-init.js"></script></head>
 <body class="popup-body">
-  <main class="popup-shell">
-    <header class="brand-bar">
-      <a class="brand" href="#" aria-label="PotBridge 映桥"><span class="brand-icon" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M9 6v20l16-10L9 6Z"/><path d="M5 9v14"/></svg></span><span>PotBridge<small>映桥 / EDGE → POTPLAYER</small></span></a>
-      <button id="settings" class="icon-button" title="设置" aria-label="打开设置"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 3-1 3-3 1-1 4 2 2-1 3 3 3 3-1 2 2 4-1 1-3 3-1V9l-3-1-1-3-4-1-2 2Z"/><circle cx="12" cy="12" r="3"/></svg></button>
+  <main class="app">
+    <header class="app-header">
+      <a class="brand" href="#" aria-label="PotBridge 映桥"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 36"><path d="M24 4A14 14 0 1 0 24 32"/><path class="play-fill" d="m13 10 13 8-13 8Z"/></svg></span><span><span class="brand-name">PotBridge</span><small class="brand-subtitle">映桥 · 为喜欢的观看方式</small></span></a>
+      <div class="header-actions"><span id="connection" class="connection-badge">检查本机连接…</span>
+        <button id="theme-toggle" class="icon-button" aria-label="切换主题" title="切换主题" aria-expanded="false" aria-controls="theme-menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c3 0 4-2 3-4-.8-1.5 0-3 2-3 1.5 0 4 .8 4-2a9 9 0 0 0-9-9Z"/><circle cx="7.5" cy="10" r=".7"/><circle cx="11" cy="6.7" r=".7"/><circle cx="16" cy="8" r=".7"/></svg></button>
+        <button id="settings" class="icon-button" title="设置" aria-label="打开设置"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 3-1 3-3 1-1 4 2 2-1 3 3 3 3-1 2 2 4-1 1-3 3-1V9l-3-1-1-3-4-1-2 2Z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      </div>
     </header>
-    <div class="connection-strip"><span id="connection" class="connection"><i aria-hidden="true"></i>检查本机连接…</span><span class="version">PERSONAL / 0.2</span></div>
-    <div class="popup-scroll">
-    <section class="current-media" aria-labelledby="page-title">
-      <div class="eyebrow">当前页面 <span id="site-host"></span></div>
-      <h1 id="page-title">让视频回到<br>熟悉的播放器。</h1>
-      <div id="site-toggle-wrap" class="site-toggle-wrap"><label class="toggle-label"><input id="site-enabled" type="checkbox" role="switch"><span>在此站点启用检测</span></label></div>
-    </section>
-    <section class="media-section" aria-label="发现的媒体">
-      <div class="section-heading"><span>媒体源</span><span id="source-count">0 个</span></div>
-      <div id="sources" class="source-list"></div>
-      <div id="empty" class="empty-state"><svg viewBox="0 0 48 48" aria-hidden="true"><rect x="5" y="9" width="38" height="27" rx="5"/><path d="m20 17 10 6-10 6Z"/><path d="M17 42h14"/></svg><strong>先在网页播放一小段</strong><p>识别到媒体后，它会出现在这里。<br>首次启用站点后，请刷新网页。</p></div>
-    </section>
-    <div id="feedback" class="feedback" role="status" aria-live="polite"><span class="status-dot" aria-hidden="true"></span><div><strong id="status-label">等待发现媒体</strong><p id="status-detail">先在网页开始播放，再点击重新检测。</p></div></div>
-    <div id="notice" class="notice" role="alert" hidden></div>
+    <div class="app-scroll">
+      <section class="hero" aria-labelledby="page-title"><div class="hero-copy"><div class="overline">当前页面</div><h1 id="page-title">让视频回到<br>熟悉的播放器。</h1><div id="site-host" class="page-meta"></div></div><div class="hero-decoration" aria-hidden="true"></div><img class="luna-art" src="./src/ui/assets/luna-portrait.webp" alt="" width="205" height="205"><span class="theme-inscription" aria-hidden="true">SAKURAKOUJI LUNA</span></section>
+      <div id="site-toggle-wrap" class="site-control"><span class="site-label">此站点的媒体检测</span><label class="switch-label"><span id="site-enabled-label">未启用</span><input id="site-enabled" type="checkbox" role="switch" aria-label="在此站点启用检测"></label></div>
+      <section class="media-section" aria-labelledby="media-heading"><div class="section-heading"><h2 id="media-heading">选择媒体源</h2><span id="source-count">0 个来源</span></div><div id="sources" class="source-list"></div><div id="empty" class="empty-state"><svg viewBox="0 0 48 48" aria-hidden="true"><rect x="5" y="9" width="38" height="27" rx="5"/><path d="m20 17 10 6-10 6Z"/><path d="M17 42h14"/></svg><strong>先在网页播放一小段</strong><p>识别到媒体后，它会出现在这里。<br>首次启用站点后，请刷新网页。</p></div></section>
+      <div id="feedback" class="status-line" role="status" aria-live="polite"><span class="status-dot" aria-hidden="true"></span><div><strong id="status-label">等待发现媒体</strong><p id="status-detail">先在网页开始播放，再点击重新检测。</p></div></div><div id="notice" class="notice" role="alert" hidden></div>
     </div>
-    <div class="actions">
-      <button id="play" class="primary-button" disabled><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 3 11 7L6 17Z"/></svg><span>用 PotPlayer 播放</span></button>
-      <div class="secondary-actions"><button id="detect" class="text-button">重新检测</button><button id="refresh" class="text-button" disabled>重新获取地址</button><button id="probe" class="text-button" disabled>检查媒体</button></div>
-    </div>
-    <footer><span>仅在本机处理 · 关闭弹窗不影响中转</span><button id="stop" class="text-button small" hidden>结束中转</button></footer>
-  </main>
-  <script type="module" src="./src/ui/popup.ts"></script>
+    <div class="app-actions"><button id="play" class="primary-button" disabled><svg viewBox="0 0 24 24" class="play" aria-hidden="true"><path d="m7 4 14 8-14 8Z"/></svg><span class="button-label">用 PotPlayer 播放</span><svg class="button-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h16m-6-6 6 6-6 6"/></svg></button><div class="action-links"><button id="detect" class="text-button">重新检测</button><button id="refresh" class="text-button" disabled title="仅适用于支持重新获取地址的来源">重新获取地址</button><button id="probe" class="text-button" disabled>检查媒体</button></div></div>
+    <footer class="app-footer"><span>本地处理 · 关闭弹窗不影响中转</span><button id="stop" class="text-button danger-action" hidden>结束中转</button><span class="theme-footer-name">LUNA / 03</span></footer>
+    <fieldset id="theme-menu" class="theme-menu" hidden><legend>选择界面主题</legend><p id="appearance-feedback" class="theme-feedback" role="status" aria-live="polite"></p></fieldset>
+  </main><script type="module" src="./src/ui/popup.ts"></script>
 </body></html>

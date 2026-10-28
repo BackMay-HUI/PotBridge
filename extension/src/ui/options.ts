@@ -1,6 +1,9 @@
 import './styles.css';
 import { element, errorMessage, isExtension, rpc } from './api.ts';
 import type { HostConfig } from '../shared/types.ts';
+import { initializeTheme } from './theme.ts';
+
+void initializeTheme(document);
 
 const input = (id: string) => element<HTMLInputElement>(id);
 function feedback(message: string, success = false) { const box = element('settings-feedback'); box.textContent = message; box.hidden = false; box.classList.toggle('success', success); }
@@ -12,9 +15,9 @@ async function check() {
     const result = await rpc('hello'); const config = result.config as HostConfig;
     input('player-path').value = config.playerPath; input('proxy-url').value = config.proxyUrl;
     input('ffprobe-path').value = config.ffprobePath; element<HTMLSelectElement>('proxy-mode').value = config.proxyMode;
-    element('host-status').textContent = `已连接 · 本机组件 ${result.version}`; proxyVisibility();
+    element('host-status').textContent = `已连接 · 本机组件 ${result.version}`; element<HTMLDetailsElement>('install-guide').open = false; proxyVisibility();
     if (result.configWarning) feedback('已有配置无法读取，请检查并重新保存。');
-  } catch (error) { element('host-status').textContent = '尚未连接 · 请先安装本机组件'; feedback(errorMessage(error)); }
+  } catch (error) { element('host-status').textContent = '尚未连接 · 请先安装本机组件'; element<HTMLDetailsElement>('install-guide').open = true; feedback(errorMessage(error)); }
 }
 element('proxy-mode').addEventListener('change', proxyVisibility);
 element('reconnect').addEventListener('click', () => void check());
@@ -36,3 +39,8 @@ element('export').addEventListener('click', async () => {
 });
 if (isExtension) { element('extension-id').textContent = chrome.runtime.id; void check(); }
 else { element('preview-note').hidden = false; element('host-status').textContent = '界面预览 · 实际连接状态将在扩展中显示'; }
+
+for (const button of document.querySelectorAll<HTMLButtonElement>('[data-section]')) button.addEventListener('click', () => {
+  for (const item of document.querySelectorAll('[data-section]')) item.setAttribute('aria-current', String(item === button));
+  document.getElementById(button.dataset.section!)?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' });
+});

@@ -41,3 +41,15 @@ test('missing audio cannot be sent as a complete Bilibili video and disabled sit
   const disabled=statusView({...state,enabled:false,candidates:[]},false,true);
   assert.match(disabled.detail,/开关|启用/);
 });
+
+test('source refresh and radio selection preserve the focused control for keyboard users', () => {
+  const win = new Window(), container = win.document.createElement('div'); win.document.body.append(container);
+  const candidates = [{ id: 'one', title: 'First', url: 'https://cdn.example/1.mp4', source: 'network', format: 'mp4' }, { id: 'two', title: 'Second', url: 'https://cdn.example/2.mp4', source: 'network', format: 'mp4' }] as any;
+  renderCandidates(container as unknown as HTMLElement, candidates, 'one');
+  const radio = container.querySelectorAll('input')[1]; radio.focus();
+  renderCandidates(container as unknown as HTMLElement, candidates, 'two');
+  assert.ok(win.document.activeElement === radio, 'selection must keep focus on the original radio'); assert.equal(radio.checked, true);
+  renderCandidates(container as unknown as HTMLElement, [...candidates], 'two'); assert.ok(win.document.activeElement === radio, 'polling must keep radio focus');
+  renderCandidates(container as unknown as HTMLElement, [{ ...candidates[0] }, { ...candidates[1], title: 'Updated title' }], 'two');
+  assert.equal((win.document.activeElement as any)?.value, 'two'); assert.ok(container.textContent?.includes('Updated title')); win.close();
+});

@@ -2,6 +2,9 @@ import './styles.css';
 import { element, errorMessage, isExtension, rpc } from './api.ts';
 import { renderCandidates, statusView } from './view.ts';
 import type { TabState } from '../shared/types.ts';
+import { initializeTheme } from './theme.ts';
+
+void initializeTheme(document);
 
 let tabId = -1, selected = '', busy = false, connected = false, actionNotice = '';
 let state: TabState = { pageUrl: '', enabled: false, candidates: [], status: 'unidentified' };
@@ -11,13 +14,15 @@ function render() {
   const view = statusView(state, busy, connected, selected);
   renderCandidates(element('sources'), state.candidates, selected);
   element('empty').hidden = !!state.candidates.length;
-  element('source-count').textContent = `${state.candidates.length} 个`;
+  element('source-count').textContent = `${state.candidates.length} 个来源`;
   element('status-label').textContent = view.label; element('status-detail').textContent = view.detail;
   element('feedback').dataset.tone = view.tone;
   play.disabled = !view.canPlay; play.querySelector('span')!.textContent = busy ? '正在检查…' : '用 PotPlayer 播放';
+  play.setAttribute('aria-busy', String(busy));
   probe.disabled = !view.canInspect; refresh.disabled = busy || !state.candidates.some(c => c.id === selected && c.source === 'cycani');
   element<HTMLButtonElement>('detect').disabled = busy;
   element<HTMLInputElement>('site-enabled').checked = state.enabled;
+  element('site-enabled-label').textContent = state.enabled ? '已启用' : '未启用';
   element<HTMLInputElement>('site-enabled').disabled = busy || !isExtension;
   element('stop').hidden = !state.sessionId;
   const notice = actionNotice || state.error?.message || (!connected && isExtension ? '本机组件尚未连接。打开设置，完成一次安装后再播放。' : '');
@@ -45,11 +50,11 @@ element<HTMLInputElement>('site-enabled').addEventListener('change', async event
 async function init() {
   if (!isExtension) { element('connection').textContent = '界面预览'; actionNotice = '这是界面预览。加载 Edge 扩展后，此处会显示当前网页实际发现的媒体。'; render(); return; }
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true }); tabId = tab?.id ?? -1;
-  if (tab?.title) element('page-title').textContent = tab.title;
+  if (tab?.title) { element('page-title').textContent = tab.title; element('page-title').title = tab.title; }
   try { element('site-host').textContent = new URL(tab?.url ?? '').hostname; } catch {}
   try { await loadState(); } catch (error) { actionNotice = errorMessage(error); }
   try { await rpc('hello'); connected = true; element('connection').innerHTML = '<i aria-hidden="true"></i>本机已连接'; element('connection').classList.add('is-connected'); }
-  catch (error) { element('connection').innerHTML = '<i aria-hidden="true"></i>本机未连接'; actionNotice = errorMessage(error); }
+  catch (error) { element('connection').textContent = '本机未连接'; element('connection').classList.add('offline'); actionNotice = errorMessage(error); }
   render();
   setInterval(() => { if (!busy) void loadState().catch(() => {}); }, 1500);
 }

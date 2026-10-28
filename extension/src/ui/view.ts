@@ -26,14 +26,23 @@ function codecName(codec?: string): string {
   return codec.split('.')[0].toUpperCase().slice(0, 18);
 }
 
+const renderedCandidates = new WeakMap<HTMLElement, string>();
 export function renderCandidates(container: HTMLElement, candidates: MediaCandidate[], selected: string): void {
-  container.replaceChildren();
+  const signature = JSON.stringify(candidates);
+  if (renderedCandidates.get(container) === signature && container.childElementCount === candidates.length) {
+    for (const radio of container.querySelectorAll<HTMLInputElement>('input[name=source]')) radio.checked = radio.value === selected;
+    return;
+  }
   const doc = container.ownerDocument;
+  const active = doc.activeElement;
+  const focusedValue = active && container.contains(active) && active.tagName === 'INPUT' ? (active as HTMLInputElement).value : undefined;
+  container.replaceChildren();
+  renderedCandidates.set(container, signature);
   for (const candidate of candidates) {
     const label = doc.createElement('label'); label.className = 'source-row';
     const input = doc.createElement('input'); input.type = 'radio'; input.name = 'source'; input.value = candidate.id; input.checked = candidate.id === selected;
     const content = doc.createElement('span'); content.className = 'source-content';
-    const title = doc.createElement('strong'); title.textContent = candidate.quality || candidate.title || '当前视频'; title.title = candidate.title;
+    const title = doc.createElement('strong'); title.className = 'source-title'; title.textContent = candidate.quality || candidate.title || '当前视频'; title.title = candidate.title;
     const meta = doc.createElement('span'); meta.className = 'source-meta';
     if (candidate.video) {
       meta.textContent = `Bilibili · ${candidate.audio ? '音视频分离' : '缺少音轨'} · ${codecName(candidate.video.codecs)}${candidate.audio ? ' / ' + codecName(candidate.audio.codecs) : ''}`;
@@ -42,4 +51,5 @@ export function renderCandidates(container: HTMLElement, candidates: MediaCandid
     const badge = doc.createElement('span'); badge.className = 'format-badge'; badge.textContent = candidate.format === 'unknown' ? '待检查' : candidate.format.toUpperCase();
     content.append(title, meta); label.append(input, content, badge); container.append(label);
   }
+  if (focusedValue) Array.from(container.querySelectorAll<HTMLInputElement>('input[name=source]')).find(input => input.value === focusedValue)?.focus();
 }
