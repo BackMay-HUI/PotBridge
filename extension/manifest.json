@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PotBridge · 映桥",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "在 Edge 中识别当前视频，通过本机中转交给 PotPlayer 播放。",
   "minimum_chrome_version": "120",
   "permissions": ["webRequest", "nativeMessaging", "storage", "scripting"],

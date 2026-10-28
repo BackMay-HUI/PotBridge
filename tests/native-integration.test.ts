@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname, basename } from 'node:path';
 
@@ -25,7 +25,8 @@ test('actual Windows host speaks framed JSON, rejects versions and private media
   });
   try {
     const hello = await request('hello', 'hello');
-    assert.equal(hello.ok, true); assert.equal(hello.result.version, '0.2.0');
+    const manifest = JSON.parse(await readFile('extension/manifest.json', 'utf8'));
+    assert.equal(hello.ok, true); assert.equal(hello.result.version, manifest.version);
     const legacy = await request('legacy', 'hello', {}, 1);
     assert.equal(legacy.error.code, 'VERSION_MISMATCH');
     const wrong = await request('wrong', 'hello', {}, 99);

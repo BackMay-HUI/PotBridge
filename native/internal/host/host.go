@@ -12,7 +12,7 @@ import (
 	"sync"
 )
 
-const Version = "0.2.0"
+const Version = "0.3.0"
 
 type Request struct {
 	ProtocolVersion int              `json:"protocolVersion"`

@@ -18,22 +18,28 @@ PotBridge 是面向 Windows 与 Microsoft Edge 的个人媒体桥接扩展。它
 
 **v0.2.0** 已由用户确认 B 站普通视频的画面、声音和拖动，以及无刷新切换、HTTP-FLV 直播和代表性 DASH 播放正常。自动化结果与实际样本分别记录在 [验收记录](docs/acceptance.md)，不意味着兼容所有网站、编码和网络环境。
 
-## v0.3 外观设计预览
+## v0.3 五款主题
 
-v0.3 正在设计五款可切换主题：**月下礼仪（樱小路露娜）**、瓷白、深蓝时刻、云母、墨绿。共用操作布局，各自定义字体、配色、材质与装饰，并覆盖弹窗和设置页。
+**v0.3.0 已将五款主题接入正式扩展**，弹窗与设置页同步切换，默认使用露娜主题。点击弹窗右上角的调色板，或在设置页「外观与主题」选择；主题立即应用并自动保存。
 
-![露娜主题的 560×600 弹窗设计稿](docs/design/v0.3/previews/luna-popup.png)
+| 主题 | 风格 |
+| --- | --- |
+| 月下礼仪 | 樱小路露娜立绘、象牙白、银灰与酒红 |
+| 瓷白 | Apple 灵感，简洁浅色与蓝色操作 |
+| 深蓝时刻 | P3R 灵感，电光蓝、切角与几何装饰 |
+| 云母 | Fluent / WinUI 灵感，柔和灰紫与局部亚克力效果 |
+| 墨绿 | 深色、低饱和绿，适合夜间观看 |
 
-查看 [设计规范](docs/v0.3-design.md)、[预览启动说明](docs/design/v0.3/README.md) 和 [设计检查记录](docs/design/v0.3/verification.md)。在仓库根目录运行 `node docs/design/v0.3/serve.mjs`，打开 <http://127.0.0.1:4173/>，即可切换主题、页面与示例状态。
+五主题共用操作布局。换肤保留未保存的播放器/代理设置和媒体选择，连接配置仍通过「保存设置」提交。主题偏好仅保存在本机，不上传或增加浏览器权限。字体、立绘和脚本均随包提供，没有 CDN 依赖。露娜为生成的同人立绘，人物来源见 [素材说明](docs/credits.md)。云母模拟网页材质，不采样 Windows 桌面壁纸。
 
-这是使用模拟数据的交互设计稿，尚未接入正式扩展；当前可安装版本仍为下面的 **v0.2.0**。露娜图像为生成的同人立绘，人物参考和提示词见设计目录。
+[设计规范](docs/v0.3-design.md) 与 [独立设计预览](docs/design/v0.3/README.md) 保留供开发参考；正式安装请使用发行包中的 `extension` 目录。
 
 ## 下载
 
-安装包见 [Releases](https://github.com/BackMay-HUI/PotBridge/releases)：`PotBridge-0.2.0-windows-x64.zip`；只有源码时，请按下文先构建、打包。可用同名 `.zip.sha256` 核对下载文件：
+安装包见 [v0.3.0 Release](https://github.com/BackMay-HUI/PotBridge/releases/tag/v0.3.0)：`PotBridge-0.3.0-windows-x64.zip`；只有源码时，请按下文先构建、打包。可用同名 `.zip.sha256` 核对下载文件：
 
 ```powershell
-Get-FileHash .\PotBridge-0.2.0-windows-x64.zip -Algorithm SHA256
+Get-FileHash .\PotBridge-0.3.0-windows-x64.zip -Algorithm SHA256
 ```
 
 ## 安装
@@ -57,7 +63,9 @@ Get-FileHash .\PotBridge-0.2.0-windows-x64.zip -Algorithm SHA256
 
 扩展 ID 与安装位置有关。移动 `extension` 文件夹、重新安装或更换配置文件后，若 ID 变化，请用新 ID 重跑安装脚本。更新时先结束中转、关闭播放器，再替换插件文件并在 Edge 扩展页面点击重新加载；随后重跑本机安装脚本，并刷新已打开的视频页面一次以载入新版捕获脚本。
 
-**从 v0.1 升级：扩展与本机组件必须一起更新。** v0.2 使用协议 2，连接旧本机组件时会提示 `VERSION_MISMATCH`。可将新版 `extension` 内容复制到原先加载的固定目录以保留扩展 ID；若改为加载新版目录，请重新复制当前 ID 安装。本机安装脚本会保留播放器、代理和 ffprobe 设置。
+**从 v0.2 升级：主题功能只需更新扩展。** 将新版 `extension` 内容复制到原先加载的固定目录，在 Edge 重新加载扩展，再刷新已打开的视频网页一次。协议仍为 2，已安装的 v0.2 本机组件可以继续使用，不必为换肤重新安装。保持目录不变可保留扩展 ID、播放器路径和站点开关。若改为加载新目录导致 ID 改变，需用新 ID 重新绑定本机组件。
+
+**从 v0.1 升级：扩展与本机组件必须一起更新。** v0.3 使用协议 2，连接 v0.1 组件时会提示 `VERSION_MISMATCH`。本机安装脚本会保留播放器、代理和 ffprobe 设置。
 
 ## 使用
 
