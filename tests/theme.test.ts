@@ -15,9 +15,10 @@ function store(value: unknown, read?: Promise<Record<string, unknown>>) {
   const listeners = new Set<(changes: Record<string, { newValue?: unknown }>, area: string) => void>();
   const data: Record<string, unknown> = { appearance: value, enabledOrigins: ['https://example.com'], config: { playerPath: 'keep.exe' } };
   const writes: Record<string, unknown>[] = [];
+  let initialRead = read;
   const emit = (next: unknown, area = 'local') => listeners.forEach(fn => fn({ appearance: { newValue: next } }, area));
   const storage: ThemeStorage = {
-    local: { get: async () => read ? await read : { appearance: data.appearance }, set: async values => { writes.push(values); Object.assign(data, values); emit(values.appearance); } },
+    local: { get: async () => { const pending = initialRead; initialRead = undefined; return pending ? await pending : { appearance: data.appearance }; }, set: async values => { writes.push(values); Object.assign(data, values); emit(values.appearance); } },
     onChanged: { addListener: fn => { listeners.add(fn); } },
   };
   return { storage, writes, data, emit };
@@ -73,6 +74,28 @@ test('cross-page updates and deletion synchronize controls without echo writes o
   assert.equal(path.value, 'still-unsaved'); assert.equal(win.document.activeElement, path); assert.equal(s.writes.length, 0);
   s.emit({ version: 1, theme: 'forest' }, 'sync'); assert.equal(win.document.documentElement.dataset.theme, 'mica');
   s.emit(undefined); assert.equal(win.document.documentElement.dataset.theme, 'luna'); win.close();
+});
+
+test('an external save after a local write commits but before acknowledgement reconciles when writes drain', async () => {
+  const win = page(), s = store({ version: 1, theme: 'luna' });
+  const set = s.storage.local.set; let acknowledge!: () => void;
+  s.storage.local.set = async values => { await set(values); await new Promise<void>(resolve => { acknowledge = resolve; }); };
+  await initializeTheme(win.document as unknown as Document, s.storage); choose(win, 'forest'); await settle();
+  s.data.appearance = { version: 1, theme: 'mica' }; s.emit(s.data.appearance);
+  acknowledge(); await settle(); await settle();
+  assert.equal(win.document.documentElement.dataset.theme, 'mica'); assert.equal(win.localStorage.getItem('potbridge-theme'), 'mica');
+  assert.equal(win.document.querySelector<HTMLInputElement>('input[name=settings-theme][value=mica]')!.checked, true);
+  assert.equal(s.writes.length, 1, 'reconciliation cannot echo a write'); win.close();
+});
+
+test('a late reconciliation read cannot undo a newer cross-page change', async () => {
+  const win = page(), s = store({ version: 1, theme: 'luna' });
+  const get = s.storage.local.get; let reads = 0, finishRead!: (value: Record<string, unknown>) => void;
+  s.storage.local.get = async key => ++reads === 2 ? await new Promise(resolve => { finishRead = resolve; }) : await get(key);
+  await initializeTheme(win.document as unknown as Document, s.storage); choose(win, 'forest'); await settle();
+  s.data.appearance = { version: 1, theme: 'mica' }; s.emit(s.data.appearance);
+  finishRead({ appearance: { version: 1, theme: 'forest' } }); await settle();
+  assert.equal(win.document.documentElement.dataset.theme, 'mica'); assert.equal(win.localStorage.getItem('potbridge-theme'), 'mica'); win.close();
 });
 
 test('unavailable storage leaves controls usable and reports an unsaved theme', async () => {

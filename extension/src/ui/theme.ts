@@ -62,9 +62,21 @@ export async function initializeTheme(doc: Document, storage: ThemeStorage | und
     }
     pendingWrites++;
     queue = queue.then(async () => {
-      try { await storage.local.set({ appearance: { version: 1, theme } }); }
+      let saved = false;
+      try { await storage.local.set({ appearance: { version: 1, theme } }); saved = true; }
       catch { if (revision === selectedRevision) note('已应用主题，但未能保存。请重新选择主题重试。'); }
-      finally { pendingWrites--; }
+      finally {
+        pendingWrites--;
+        // An external commit can arrive between our write committing and its acknowledgement.
+        // Read the authority when the queue drains; stale reads cannot replace newer choices.
+        if (saved && pendingWrites === 0) {
+          const reconcileRevision = revision;
+          try {
+            const values = await storage.local.get('appearance');
+            if (pendingWrites === 0 && revision === reconcileRevision) apply(preference(values.appearance));
+          } catch { /* Keep the applied theme; a later storage event can still synchronize it. */ }
+        }
+      }
     });
   }
   const toggle = doc.getElementById('theme-toggle'), menu = doc.getElementById('theme-menu');

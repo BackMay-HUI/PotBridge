@@ -36,9 +36,10 @@ async function harness(page: 'popup' | 'options', rejectHost = false) {
   };
   const element = (id: string) => win.document.getElementById(id)! as HappyHTMLElement;
   const tabs = { query: async () => [{ id: 19, title: '<script>not markup</script> 长标题 '.repeat(5), url: state.pageUrl }] };
+  class PageURL extends URL { static createObjectURL() { return 'blob:test'; } static revokeObjectURL() {} }
   win.HTMLAnchorElement.prototype.click = function () { downloads.push(this.download); };
   const context = vm.createContext({ document: win.document, window: win, location: win.location, navigator: win.navigator,
-    HTMLElement: win.HTMLElement, HTMLInputElement: win.HTMLInputElement, URL: { createObjectURL: () => 'blob:test', revokeObjectURL: () => {} }, Blob,
+    HTMLElement: win.HTMLElement, HTMLInputElement: win.HTMLInputElement, URL: PageURL, Blob,
     setInterval: () => 0, setTimeout: () => 0, isExtension: true, chrome: { runtime: { id: 'example-id', openOptionsPage: async () => {} }, tabs },
     rpc, element, errorMessage: (error: any) => error.message, renderCandidates, statusView,
     initializeTheme: (doc: Document) => initializeTheme(doc, storage),
@@ -65,6 +66,7 @@ test('real popup keeps its chosen media and RPC actions through theme switching'
     assert.equal(h.element('status-label').textContent, '已发送到 PotPlayer'); assert.equal(h.element('stop').hidden, false);
     h.element('stop').click(); await settle(); assert.equal(h.element('stop').hidden, true);
     assert.ok(!h.element('sources').innerHTML.includes('secret')); assert.equal(h.element('page-title').querySelector('script'), null);
+    assert.equal(h.element('site-host').textContent, 'www.bilibili.com');
     assert.ok(h.element('page-title').textContent!.includes('<script>')); assert.equal(h.element('refresh').hasAttribute('disabled'), true);
   } finally { h.win.close(); }
 });
